@@ -33,6 +33,7 @@ public class NotePad extends JFrame{
     private JLabel stateBar;
 
     private JPopupMenu popUpMenu;
+    private JFileChooser fileChooser;
 
     public NotePad(TextDAO textDAO) throws HeadlessException {
         this();
@@ -54,6 +55,7 @@ public class NotePad extends JFrame{
         initTextArea();
         initStateBar();
 
+        fileChooser = new JFileChooser();
         popUpMenu = editMenu.getPopupMenu();
     }
 
@@ -188,6 +190,40 @@ public class NotePad extends JFrame{
     }
 
     private void openFile(ActionEvent actionEvent) {
+        if (stateBar.getText().equals("未修改")) {
+            //文档未修改
+            //打开旧文档
+            showFileDialog();
+        } else {
+            int option = JOptionPane.showConfirmDialog(null, "文档已修改，是否存储？", "是否存储文档？", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, null);
+            switch (option){
+                case JOptionPane.YES_OPTION:
+                    saveFile();
+                    break;
+                case JOptionPane.NO_OPTION:
+                    showFileDialog();
+                    break;
+                default:
+                    return;
+            }
+        }
+    }
+
+    private void saveFile() {
+    }
+
+    private void showFileDialog() {
+        int option = fileChooser.showDialog(null, null);
+
+        if (option == JFileChooser.APPROVE_OPTION) {
+            String title = fileChooser.getSelectedFile().toString();
+            setTitle(title);
+            textArea.setText("");
+            stateBar.setText("未修改");
+
+            String text = textDAO.read(fileChooser.getSelectedFile().toString());
+            textArea.setText(text);
+        }
     }
 
     private void textAreaActionPerformed(KeyEvent e) {
