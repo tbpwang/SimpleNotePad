@@ -178,6 +178,7 @@ public class NotePad extends JFrame{
     }
 
     private void paste(ActionEvent actionEvent) {
+        //调用JTextArea的方法
         textArea.paste();
         stateBar.setText("已修改");
         popUpMenu.setVisible(false);
