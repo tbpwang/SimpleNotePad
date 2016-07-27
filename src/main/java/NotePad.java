@@ -1,8 +1,13 @@
 import DAO.TextDAO;
+import DAO.impl.FileTextDAO;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * Administrator
@@ -13,8 +18,6 @@ public class NotePad extends JFrame{
 
     private TextDAO textDAO;
 
-    private JMenuBar menuBar;
-    
     private JMenu fileMenu;
     private JMenuItem menuOpen;
     private JMenuItem menuSave;
@@ -35,12 +38,12 @@ public class NotePad extends JFrame{
     private JPopupMenu popUpMenu;
     private JFileChooser fileChooser;
 
-    public NotePad(TextDAO textDAO) throws HeadlessException {
+    private NotePad(TextDAO textDAO) throws HeadlessException {
         this();
         this.textDAO = textDAO;
     }
 
-    public NotePad() throws HeadlessException {
+    private NotePad() throws HeadlessException {
         initComponents();
         initEventListeners();
     }
@@ -56,6 +59,9 @@ public class NotePad extends JFrame{
         initStateBar();
 
         fileChooser = new JFileChooser();
+        FileNameExtensionFilter nameExtensionFilter = new FileNameExtensionFilter("文本文件", "txt");
+        fileChooser.setFileFilter(nameExtensionFilter);
+
         popUpMenu = editMenu.getPopupMenu();
     }
 
@@ -77,7 +83,7 @@ public class NotePad extends JFrame{
     }
 
     private void initMenuBar() {
-        menuBar = new JMenuBar();
+        JMenuBar menuBar = new JMenuBar();
         menuBar.add(fileMenu);
         menuBar.add(editMenu);
         menuBar.add(aboutMenu);
@@ -121,7 +127,7 @@ public class NotePad extends JFrame{
     }
 
     private void initEventListeners(){
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         initAccelerator();//初始化快捷键
 
         //窗口关闭事件
@@ -138,7 +144,7 @@ public class NotePad extends JFrame{
         textArea.addKeyListener(new KeyAdapter() {
             @Override
             public void keyTyped(KeyEvent e) {
-                textAreaActionPerformed(e);
+                textAreaActionPerformed();
             }
         });
 
@@ -167,27 +173,53 @@ public class NotePad extends JFrame{
         menuClose.addActionListener(this::closeFile);
         menuCut.addActionListener(this::cut);
         menuCopy.addActionListener(this::copy);
-        menuPaste.addActionListener(this::paster);
+        menuPaste.addActionListener(this::paste);
         menuAbout.addActionListener(e -> JOptionPane.showOptionDialog(null, "NotePad 1.0","关于记事本", JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, null, null));
     }
 
-    private void paster(ActionEvent actionEvent) {
+    private void paste(ActionEvent actionEvent) {
+        textArea.paste();
+        stateBar.setText("已修改");
+        popUpMenu.setVisible(false);
     }
 
     private void copy(ActionEvent actionEvent) {
+        textArea.copy();
+        popUpMenu.setVisible(false);
     }
 
     private void cut(ActionEvent actionEvent) {
+        textArea.cut();
+        stateBar.setText("已修改");
+        popUpMenu.setVisible(false);
     }
 
     private void closeFile(ActionEvent actionEvent) {
+        if (stateBar.getText().equals("未修改")) {
+            dispose();
+        } else {
+            int option = JOptionPane.showConfirmDialog(null,"文档已修改，是否存储","是否存储文档？",JOptionPane.YES_NO_OPTION,JOptionPane.WARNING_MESSAGE, null);
+            switch (option){
+                case JOptionPane.YES_OPTION:
+                    saveFile(actionEvent);
+                    break;
+                case JOptionPane.NO_OPTION:
+                    dispose();
+                    break;
+                default:
+            }
+        }
     }
 
     private void saveFileAs(ActionEvent actionEvent) {
+        int option = fileChooser.showSaveDialog(null);
+        if (option == JFileChooser.APPROVE_OPTION) {
+            setTitle(fileChooser.getSelectedFile().toString());
+            textDAO.create(fileChooser.getSelectedFile().toString());
+            saveFile(actionEvent);
+        }
     }
 
-    private void saveFile(ActionEvent actionEvent) {
-    }
 
     private void openFile(ActionEvent actionEvent) {
         if (stateBar.getText().equals("未修改")) {
@@ -198,18 +230,25 @@ public class NotePad extends JFrame{
             int option = JOptionPane.showConfirmDialog(null, "文档已修改，是否存储？", "是否存储文档？", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, null);
             switch (option){
                 case JOptionPane.YES_OPTION:
-                    saveFile();
+                    saveFile(actionEvent);
                     break;
                 case JOptionPane.NO_OPTION:
                     showFileDialog();
                     break;
                 default:
-                    return;
             }
         }
     }
 
-    private void saveFile() {
+    private void saveFile(ActionEvent actionEvent) {
+        //从标题栏取得文件名
+        Path path = Paths.get(getTitle());
+        if (Files.notExists(path)) {
+            saveFileAs(actionEvent);
+        } else {
+            textDAO.save(path.toString(),textArea.getText());
+            stateBar.setText("未修改");
+        }
     }
 
     private void showFileDialog() {
@@ -226,10 +265,12 @@ public class NotePad extends JFrame{
         }
     }
 
-    private void textAreaActionPerformed(KeyEvent e) {
+    private void textAreaActionPerformed() {
+        stateBar.setText("已修改");
     }
 
     private void closeWindow(WindowEvent e) {
+        closeFile(new ActionEvent(e.getSource(),e.getID(), "WindowClosing"));
     }
 
     private void initAccelerator() {
@@ -250,6 +291,6 @@ public class NotePad extends JFrame{
 //                notePad.setVisible(true);
 //            }
 //        });
-        SwingUtilities.invokeLater(()-> new NotePad().setVisible(true));
+        SwingUtilities.invokeLater(()-> new NotePad(new FileTextDAO()).setVisible(true));
     }
 }
